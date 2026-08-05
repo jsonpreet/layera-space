@@ -60,8 +60,11 @@ pub fn run() {
             store::store_load,
             store::store_save,
             agents::detect_agents,
+            agents::detect_runners,
             hook::hook_url,
+            hook::hook_status,
             hook::install_hooks,
+            hook::uninstall_hooks,
             session::session_begin,
             session::list_sessions,
             session::read_session,
@@ -69,9 +72,21 @@ pub fn run() {
             files::fs_write_text,
             files::fs_list_dir,
             files::fs_git_head,
+            files::fs_git_head_state,
+            files::workspace_data_path,
+            files::fs_exists,
+            files::fs_delete,
+            files::fs_mkdir,
+            files::fs_rename,
             files::kanban_fallback_path,
             browser_navigate
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app, event| {
+            // Nothing spawned by the app should outlive the window.
+            if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
+                app.state::<pty::PtyManager>().kill_all();
+            }
+        });
 }

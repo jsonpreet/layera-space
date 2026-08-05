@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useOverlay } from "../lib/useOverlay";
 
 export const WORKSPACE_COLORS = [
   "#c98f52",
@@ -28,6 +29,7 @@ export function ColorPopover({
   onPick: (color: string) => void;
   onClose: () => void;
 }) {
+  useOverlay();
   const ref = useRef<HTMLDivElement>(null);
   const [custom, setCustom] = useState(value);
 

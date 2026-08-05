@@ -49,8 +49,15 @@ function HeaderBtn({
 }
 
 export function PaneFrame({ pane }: { pane: Pane }) {
-  const { closePane, splitPane, setFocused, toggleZoom, zoomed, reportBell } =
-    useApp();
+  const {
+    closePane,
+    splitPane,
+    setFocused,
+    toggleZoom,
+    zoomed,
+    reportBell,
+    beginRecording,
+  } = useApp();
   const isZoomed = zoomed[pane.workspaceId] === pane.id;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
@@ -138,7 +145,11 @@ export function PaneFrame({ pane }: { pane: Pane }) {
             <EditorPane pane={pane} />
           </Suspense>
         ) : (
-          <TermPane ptyId={pane.ptyId} onBell={() => reportBell(pane.ptyId)} />
+          <TermPane
+            ptyId={pane.ptyId}
+            onBell={() => reportBell(pane.ptyId)}
+            onFitted={(cols, rows) => beginRecording(pane.id, cols, rows)}
+          />
         )}
       </div>
 

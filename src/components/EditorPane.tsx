@@ -5,6 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Pane } from "../store/app";
 import { useApp } from "../store/app";
 
+type HeadFile = { tracked: boolean; in_repo: boolean; content: string };
+
 loader.config({ monaco });
 
 monaco.editor.defineTheme("layera-dark", {
@@ -133,6 +135,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
   const [content, setContent] = useState("");
   const [savedContent, setSavedContent] = useState("");
   const [originalContent, setOriginalContent] = useState("");
+  const [tracked, setTracked] = useState(false);
   const [diff, setDiff] = useState(false);
   const [loading, setLoading] = useState(false);
   const [treeError, setTreeError] = useState<string | null>(null);
@@ -217,11 +220,18 @@ export function EditorPane({ pane }: { pane: Pane }) {
       return;
     }
     setMessage("Loading HEAD...");
-    void invoke<string>("fs_git_head", { path: selectedPath })
-      .then((base) => {
-        setOriginalContent(base);
+    void invoke<HeadFile>("fs_git_head_state", { path: selectedPath })
+      .then((head) => {
+        setOriginalContent(head.content);
+        setTracked(head.tracked);
         setDiff(true);
-        setMessage(base ? null : "No committed version; showing an empty base");
+        setMessage(
+          head.tracked
+            ? null
+            : head.in_repo
+              ? "New file — nothing committed yet, so the left side is empty"
+              : "Not a git repository; showing an empty base",
+        );
       })
       .catch((error: unknown) =>
         setMessage(`Could not load HEAD: ${String(error)}`),
@@ -232,6 +242,28 @@ export function EditorPane({ pane }: { pane: Pane }) {
 
   const rejectDiff = () => {
     if (!selectedPath) return;
+    // Without a committed version there is nothing to restore. Writing the
+    // empty base back would silently truncate the file to zero bytes, so offer
+    // the only honest alternative instead.
+    if (!tracked) {
+      if (
+        !window.confirm(
+          `${fileName(selectedPath)} has no committed version to restore.\n\nDelete the file instead?`,
+        )
+      ) {
+        return;
+      }
+      void invoke("fs_delete", { path: selectedPath })
+        .then(() => {
+          setSelectedPath(null);
+          setContent("");
+          setSavedContent("");
+          setDiff(false);
+          setMessage("Deleted");
+        })
+        .catch((error: unknown) => setMessage(`Delete failed: ${String(error)}`));
+      return;
+    }
     if (!window.confirm("Replace the working file with its HEAD version?")) {
       return;
     }

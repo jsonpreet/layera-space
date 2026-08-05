@@ -7,7 +7,7 @@ use std::io::{BufWriter, Read, Write};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 pub struct Recorder {
     pub file: BufWriter<File>,
@@ -36,6 +36,27 @@ impl PtyManager {
 
     pub fn recorder_for(&self, id: &str) -> Option<Arc<Mutex<Option<Recorder>>>> {
         self.handles.lock().unwrap().get(id).map(|h| h.recorder.clone())
+    }
+
+    /// Release a handle whose child exited on its own. Without this the writer,
+    /// master and child of every naturally-exited pty stay in the map forever;
+    /// only `pty_kill` used to remove them.
+    pub fn drop_handle(&self, id: &str) {
+        if let Ok(mut handles) = self.handles.lock() {
+            if let Some(mut h) = handles.remove(id) {
+                let _ = h.child.wait();
+            }
+        }
+    }
+
+    /// Kill every live pty. Called on app exit so no shell outlives the window.
+    pub fn kill_all(&self) {
+        if let Ok(mut handles) = self.handles.lock() {
+            for (_, mut h) in handles.drain() {
+                let _ = h.child.kill();
+                let _ = h.child.wait();
+            }
+        }
     }
 }
 
@@ -68,6 +89,7 @@ fn default_shell_command() -> CommandBuilder {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn pty_spawn(
     app: AppHandle,
     state: State<'_, PtyManager>,
@@ -115,6 +137,17 @@ pub fn pty_spawn(
     let recorder: Arc<Mutex<Option<Recorder>>> = Arc::new(Mutex::new(None));
     let rec_thread = recorder.clone();
     let thread_id = id.clone();
+
+    // Insert before the reader thread starts: a command that exits immediately
+    // would otherwise reach drop_handle before the handle exists, and leak.
+    let handle = PtyHandle {
+        writer,
+        master: pair.master,
+        child,
+        recorder,
+    };
+    state.handles.lock().unwrap().insert(id.clone(), handle);
+
     std::thread::spawn(move || {
         let mut buf = [0u8; 16384];
         loop {
@@ -144,16 +177,10 @@ pub fn pty_spawn(
                 let _ = rec.file.flush();
             }
         }
+        app.state::<PtyManager>().drop_handle(&thread_id);
         let _ = app.emit("pty://exit", ExitEvent { id: thread_id });
     });
 
-    let handle = PtyHandle {
-        writer,
-        master: pair.master,
-        child,
-        recorder,
-    };
-    state.handles.lock().unwrap().insert(id.clone(), handle);
     Ok(id)
 }
 

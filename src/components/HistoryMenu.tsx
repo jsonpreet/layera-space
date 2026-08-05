@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { Workspace } from "../store/app";
 import { useApp } from "../store/app";
 import { listSessions, type SessionMeta } from "../lib/session";
+import { OverlayMark } from "../lib/useOverlay";
 
 function relTime(epochSec: number): string {
   const diff = Math.max(0, Date.now() / 1000 - epochSec);
@@ -48,6 +49,7 @@ export function HistoryMenu({ ws }: { ws: Workspace }) {
         History
       </button>
 
+      {openAt && <OverlayMark />}
       {openAt && (
         <>
           <div className="fixed inset-0 z-40" onMouseDown={() => setOpenAt(null)} />

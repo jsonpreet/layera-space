@@ -90,11 +90,9 @@ pub fn start(app: AppHandle) -> Result<HookServer, String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     std::thread::spawn(move || {
-        for stream in listener.incoming() {
-            if let Ok(stream) = stream {
-                let app = app.clone();
-                std::thread::spawn(move || handle_conn(stream, app));
-            }
+        for stream in listener.incoming().flatten() {
+            let app = app.clone();
+            std::thread::spawn(move || handle_conn(stream, app));
         }
     });
     Ok(HookServer { port })
@@ -156,7 +154,29 @@ fn write_notify_scripts(app: &AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(sh)
 }
 
-const MARKER: &str = "layera";
+/// Idempotency marker.
+///
+/// This used to be the bare substring "layera", which matched any unrelated
+/// occurrence in the user's config — a project path like `~/dev/layeraspace`
+/// was enough to report "already installed" and silently skip the install.
+/// The marker is now distinctive and written as a literal trailing argument of
+/// the installed command (the notify script ignores argument 3), so detection
+/// keys on our own entry and nothing else.
+const MARKER: &str = "LAYERA_SPACE_HOOK_V1";
+
+fn claude_command(script: &std::path::Path) -> String {
+    #[cfg(unix)]
+    {
+        format!("sh \"{}\" claude stop {MARKER}", script.display())
+    }
+    #[cfg(windows)]
+    {
+        format!(
+            "cmd /c \"{}\" claude stop {MARKER}",
+            script.with_extension("cmd").display()
+        )
+    }
+}
 
 fn install_claude_hook(script: &std::path::Path) -> String {
     let home = match home_dir() {
@@ -177,13 +197,7 @@ fn install_claude_hook(script: &std::path::Path) -> String {
         return "already installed".to_string();
     }
 
-    #[cfg(unix)]
-    let command = format!("sh \"{}\" claude stop", script.display());
-    #[cfg(windows)]
-    let command = format!(
-        "cmd /c \"{}\" claude stop",
-        script.with_extension("cmd").display()
-    );
+    let command = claude_command(script);
 
     let entry = serde_json::json!({
         "hooks": [{ "type": "command", "command": command }]
@@ -215,6 +229,27 @@ fn install_claude_hook(script: &std::path::Path) -> String {
     }
 }
 
+fn codex_notify_line(script: &std::path::Path) -> String {
+    #[cfg(unix)]
+    {
+        format!(
+            "notify = [\"sh\", \"{}\", \"codex\"]",
+            script.display().to_string().replace('\\', "\\\\")
+        )
+    }
+    #[cfg(windows)]
+    {
+        format!(
+            "notify = [\"cmd\", \"/c\", \"{}\", \"codex\"]",
+            script
+                .with_extension("cmd")
+                .display()
+                .to_string()
+                .replace('\\', "\\\\")
+        )
+    }
+}
+
 fn install_codex_hook(script: &std::path::Path) -> String {
     let home = match home_dir() {
         Ok(h) => h,
@@ -233,20 +268,7 @@ fn install_codex_hook(script: &std::path::Path) -> String {
         }
     }
 
-    #[cfg(unix)]
-    let line = format!(
-        "notify = [\"sh\", \"{}\", \"codex\"]\n",
-        script.display().to_string().replace('\\', "\\\\")
-    );
-    #[cfg(windows)]
-    let line = format!(
-        "notify = [\"cmd\", \"/c\", \"{}\", \"codex\"]\n",
-        script
-            .with_extension("cmd")
-            .display()
-            .to_string()
-            .replace('\\', "\\\\")
-    );
+    let line = format!("# {MARKER}\n{}\n", codex_notify_line(script));
 
     let mut out = existing;
     if !out.is_empty() && !out.ends_with('\n') {
@@ -266,9 +288,109 @@ fn install_codex_hook(script: &std::path::Path) -> String {
 #[tauri::command]
 pub fn install_hooks(app: AppHandle) -> Result<HookInstallStatus, String> {
     let script = write_notify_scripts(&app)?;
-    Ok(HookInstallStatus {
+    let status = HookInstallStatus {
         claude: install_claude_hook(&script),
         codex: install_codex_hook(&script),
         notify_script: script.display().to_string(),
-    })
+    };
+    let _ = record_install(&app, &status);
+    Ok(status)
+}
+
+fn record_install(app: &AppHandle, status: &HookInstallStatus) -> Result<(), String> {
+    let path = hooks_dir(app)?.join("installed.json");
+    let body = serde_json::json!({
+        "marker": MARKER,
+        "claude": status.claude,
+        "codex": status.codex,
+        "notifyScript": status.notify_script,
+    });
+    std::fs::write(&path, serde_json::to_string_pretty(&body).unwrap_or_default())
+        .map_err(|e| e.to_string())
+}
+
+/// What is installed *right now*, read from the real config files rather than
+/// from our own bookkeeping — the user may have edited or removed them by hand.
+#[tauri::command]
+pub fn hook_status() -> HookInstallStatus {
+    let home = home_dir().unwrap_or_default();
+    let claude_settings = std::fs::read_to_string(home.join(".claude").join("settings.json"))
+        .unwrap_or_default();
+    let codex_config =
+        std::fs::read_to_string(home.join(".codex").join("config.toml")).unwrap_or_default();
+    let state = |installed: bool| {
+        if installed { "installed" } else { "not installed" }.to_string()
+    };
+    HookInstallStatus {
+        claude: state(claude_settings.contains(MARKER)),
+        codex: state(codex_config.contains(MARKER)),
+        notify_script: String::new(),
+    }
+}
+
+#[tauri::command]
+pub fn uninstall_hooks(app: AppHandle) -> Result<HookInstallStatus, String> {
+    let home = home_dir()?;
+    let mut claude = "not installed".to_string();
+    let mut codex = "not installed".to_string();
+
+    // Claude: drop only the Stop entries carrying our marker.
+    let settings_path = home.join(".claude").join("settings.json");
+    if let Ok(text) = std::fs::read_to_string(&settings_path) {
+        if let Ok(mut settings) = serde_json::from_str::<serde_json::Value>(&text) {
+            let mut removed = 0;
+            if let Some(stop) = settings
+                .get_mut("hooks")
+                .and_then(|h| h.get_mut("Stop"))
+                .and_then(|s| s.as_array_mut())
+            {
+                let before = stop.len();
+                stop.retain(|entry| !entry.to_string().contains(MARKER));
+                removed = before - stop.len();
+            }
+            if removed > 0 {
+                claude = match std::fs::write(
+                    &settings_path,
+                    serde_json::to_string_pretty(&settings).unwrap_or_default(),
+                ) {
+                    Ok(_) => "removed".to_string(),
+                    Err(e) => format!("failed: {e}"),
+                };
+            }
+        }
+    }
+
+    // Codex: drop the marker comment and the notify line that follows it.
+    let config_path = home.join(".codex").join("config.toml");
+    if let Ok(text) = std::fs::read_to_string(&config_path) {
+        if text.contains(MARKER) {
+            let mut out = String::new();
+            let mut skip_next_notify = false;
+            for line in text.lines() {
+                if line.trim() == format!("# {MARKER}") {
+                    skip_next_notify = true;
+                    continue;
+                }
+                if skip_next_notify && line.trim_start().starts_with("notify") {
+                    skip_next_notify = false;
+                    continue;
+                }
+                skip_next_notify = false;
+                out.push_str(line);
+                out.push('\n');
+            }
+            codex = match std::fs::write(&config_path, out) {
+                Ok(_) => "removed".to_string(),
+                Err(e) => format!("failed: {e}"),
+            };
+        }
+    }
+
+    let status = HookInstallStatus {
+        claude,
+        codex,
+        notify_script: String::new(),
+    };
+    let _ = record_install(&app, &status);
+    Ok(status)
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useApp, type Settings } from "../store/app";
 import { playSound, type SoundKind } from "../lib/sound";
+import { OverlayMark } from "../lib/useOverlay";
 
 const SOUNDS: { value: SoundKind; label: string }[] = [
   { value: "chime", label: "Chime" },
@@ -28,6 +29,7 @@ export function SettingsPopover() {
         Alerts
       </button>
 
+      {open && <OverlayMark />}
       {open && (
         <>
           <div className="fixed inset-0 z-40" onMouseDown={() => setOpen(false)} />

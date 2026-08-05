@@ -5,55 +5,35 @@ import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 import { decodeB64, resizePty, writePty } from "../lib/pty";
 import { subscribePtyOutput } from "../lib/bus";
+import { TERM_OPTIONS, TERM_THEME } from "../lib/theme";
 
 const enc = new TextEncoder();
 
 export function TermPane({
   ptyId,
   onBell,
+  onFitted,
 }: {
   ptyId: string;
   onBell?: () => void;
+  /** Fires once, with the real geometry, after the first successful fit. */
+  onFitted?: (cols: number, rows: number) => void;
 }) {
   const holder = useRef<HTMLDivElement>(null);
   const bellRef = useRef(onBell);
   bellRef.current = onBell;
+  const fittedRef = useRef(onFitted);
+  fittedRef.current = onFitted;
 
   useEffect(() => {
     const el = holder.current;
     if (!el) return;
 
     const term = new Terminal({
-      fontFamily:
-        'ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace',
-      fontSize: 13,
-      lineHeight: 1.25,
+      ...TERM_OPTIONS,
       cursorBlink: true,
-      allowProposedApi: true,
       scrollback: 5000,
-      theme: {
-        background: "#16130f",
-        foreground: "#ece5da",
-        cursor: "#c98f52",
-        cursorAccent: "#16130f",
-        selectionBackground: "#3a3226",
-        black: "#1d1915",
-        red: "#d47a5c",
-        green: "#7fae72",
-        yellow: "#d3a24b",
-        blue: "#6f9bb5",
-        magenta: "#b58bb0",
-        cyan: "#6fb0a8",
-        white: "#ece5da",
-        brightBlack: "#6b6156",
-        brightRed: "#e29179",
-        brightGreen: "#96c18a",
-        brightYellow: "#e0b668",
-        brightBlue: "#88b0c7",
-        brightMagenta: "#c7a3c2",
-        brightCyan: "#87c2ba",
-        brightWhite: "#f5efe6",
-      },
+      theme: { ...TERM_THEME },
     });
 
     const fit = new FitAddon();
@@ -65,11 +45,19 @@ export function TermPane({
       // webgl unavailable; canvas fallback is fine
     }
 
+    let announced = false;
     const doFit = () => {
       if (el.clientWidth === 0 || el.clientHeight === 0) return;
       try {
         fit.fit();
         void resizePty(ptyId, term.cols, term.rows);
+        // Recording starts only once the pane has real dimensions. Starting it
+        // at spawn time stamped every cast header with a placeholder 80x24, so
+        // every replay rendered at the wrong size.
+        if (!announced) {
+          announced = true;
+          fittedRef.current?.(term.cols, term.rows);
+        }
       } catch {
         // container may be hidden during layout changes
       }

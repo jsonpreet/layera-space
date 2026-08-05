@@ -5,6 +5,7 @@ import { AGENTS, AGENT_ORDER, AGENT_TINT, type AgentKind } from "../lib/agents";
 import type { Workspace } from "../store/app";
 import { useApp } from "../store/app";
 import { IconPlus } from "./icons";
+import { OverlayMark } from "../lib/useOverlay";
 
 export function LaunchMenu({ ws }: { ws: Workspace }) {
   const {
@@ -87,6 +88,7 @@ export function LaunchMenu({ ws }: { ws: Workspace }) {
         New
       </button>
 
+      {openAt && <OverlayMark />}
       {openAt && (
         <>
           <div className="fixed inset-0 z-40" onMouseDown={() => setOpenAt(null)} />

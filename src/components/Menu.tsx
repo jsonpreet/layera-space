@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useOverlay } from "../lib/useOverlay";
 
 export type MenuItem = {
   label: string;
@@ -17,6 +18,7 @@ export function Menu({
   items: MenuItem[];
   onClose: () => void;
 }) {
+  useOverlay();
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ x, y });
 

@@ -26,6 +26,12 @@ export function BrowserPane({ pane }: { pane: Pane }) {
   const [input, setInput] = useState(pane.url ?? "");
   const [hint, setHint] = useState(!pane.url);
 
+  // The webview is an OS layer above the React tree: while a menu is open, or
+  // while this pane's workspace isn't the active one, it must get out of the way.
+  const obscured = useApp(
+    (s) => s.overlayCount > 0 || s.activeWorkspaceId !== pane.workspaceId,
+  );
+
   const label = `browser-${pane.id}`;
 
   const syncRect = () => {
@@ -38,10 +44,14 @@ export function BrowserPane({ pane }: { pane: Pane }) {
     void wv.setSize(new LogicalSize(r.width, r.height));
   };
 
+  const obscuredRef = useRef(obscured);
+  obscuredRef.current = obscured;
+
   const ensure = () => {
     const el = containerRef.current;
     if (
       !mountedRef.current ||
+      obscuredRef.current ||
       !targetUrlRef.current ||
       !el ||
       webviewRef.current ||
@@ -104,6 +114,19 @@ export function BrowserPane({ pane }: { pane: Pane }) {
   };
 
   const canAct = !!targetUrlRef.current && targetUrlRef.current !== "about:blank";
+
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (obscured) {
+      if (wv) void wv.hide();
+    } else if (wv) {
+      syncRect();
+      void wv.show();
+    } else {
+      ensure();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [obscured]);
 
   useEffect(() => {
     mountedRef.current = true;

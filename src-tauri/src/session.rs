@@ -61,6 +61,14 @@ pub fn session_begin(
     Ok(path.to_string_lossy().to_string())
 }
 
+fn read_header(path: &std::path::Path) -> Option<serde_json::Value> {
+    use std::io::{BufRead, BufReader};
+    let file = File::open(path).ok()?;
+    let mut line = String::new();
+    BufReader::new(file).read_line(&mut line).ok()?;
+    serde_json::from_str(line.trim()).ok()
+}
+
 #[derive(Serialize)]
 pub struct SessionMeta {
     pub path: String,
@@ -90,18 +98,13 @@ pub fn list_sessions(app: AppHandle, workspace_id: String) -> Result<Vec<Session
         let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
         let mut title = String::from("session");
         let mut started_at: u64 = 0;
-        if let Ok(content) = fs::read_to_string(&path) {
-            if let Some(first) = content.lines().next() {
-                if let Ok(v) = serde_json::from_str::<serde_json::Value>(first) {
-                    if let Some(t) = v.get("title").and_then(|x| x.as_str()) {
-                        title = t.to_string();
-                    }
-                    started_at = v
-                        .get("timestamp")
-                        .and_then(|x| x.as_u64())
-                        .unwrap_or(0);
-                }
+        // Only the header line is needed. Reading whole casts here made opening
+        // the history menu cost the full size of every recording on disk.
+        if let Some(v) = read_header(&path) {
+            if let Some(t) = v.get("title").and_then(|x| x.as_str()) {
+                title = t.to_string();
             }
+            started_at = v.get("timestamp").and_then(|x| x.as_u64()).unwrap_or(0);
         }
         out.push(SessionMeta {
             path: path.to_string_lossy().to_string(),
@@ -110,7 +113,7 @@ pub fn list_sessions(app: AppHandle, workspace_id: String) -> Result<Vec<Session
             size,
         });
     }
-    out.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+    out.sort_by_key(|s| std::cmp::Reverse(s.started_at));
     Ok(out)
 }
 
