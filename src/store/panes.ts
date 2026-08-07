@@ -173,15 +173,24 @@ export const createPaneSlice: Slice<PaneSlice> = (set, get) => ({
     schedulePersist(get);
   },
 
+  boardPathFor: async (workspaceId) => {
+    const ws = get().workspaces.find((w) => w.id === workspaceId);
+    if (!ws) return null;
+    const path = ws.folder
+      ? await join(ws.folder, ".layera", "tasks", "board.md")
+      : await invoke<string>("workspace_data_path", {
+          workspaceId,
+          name: "board.md",
+        });
+    const { migrateLegacyBoard } = await import("../lib/board");
+    await migrateLegacyBoard(path).catch(() => false);
+    return path;
+  },
+
   openKanban: async (workspaceId) => {
     if (focusExisting(set, get, workspaceId, "kanban")) return;
-    const ws = get().workspaces.find((w) => w.id === workspaceId);
-    if (!ws) return;
-    // Stage 3 moves this to `.layera/tasks/board.md` with a migration; until the
-    // Markdown parser lands the pane still reads and writes the JSON board.
-    const boardPath = ws.folder
-      ? await join(ws.folder, ".layera/tasks/board.json")
-      : await invoke<string>("kanban_fallback_path", { workspaceId });
+    const boardPath = await get().boardPathFor(workspaceId);
+    if (!boardPath) return;
     addPane(
       set,
       get,

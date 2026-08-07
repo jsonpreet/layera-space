@@ -1,6 +1,9 @@
 import type { AgentKind } from "../lib/agents";
 import type { LayoutNode } from "../lib/layout";
 import type { SoundKind } from "../lib/sound";
+import type { RunSlice } from "./runs";
+import type { RailMode, RailSlice } from "./rail";
+import type { Runner } from "../lib/run";
 
 export type PaneKind =
   | "shell"
@@ -66,12 +69,28 @@ export type Settings = {
   notifyEnabled: boolean;
   /** Silence-after-activity window that marks an interactive agent done. */
   idleMs: number;
+
+  railOpen: boolean;
+  railWidth: number;
+  railMode: RailMode;
+  railRunner: Runner;
+  /** Whether Build-mode runs may edit files. */
+  railWrite: boolean;
+
+  /** Explicit binary paths, for CLIs installed somewhere unusual. */
+  runnerPaths: Record<string, string>;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
   sound: "chime",
   notifyEnabled: true,
   idleMs: 7000,
+  railOpen: false,
+  railWidth: 400,
+  railMode: "chat",
+  railRunner: "claude",
+  railWrite: true,
+  runnerPaths: {},
 };
 
 export const DEFAULT_COLOR = "#c98f52";
@@ -112,6 +131,8 @@ export type PaneSlice = {
     dir?: "h" | "v",
   ) => Promise<void>;
   openReplay: (workspaceId: string, sessionPath: string, title: string) => void;
+  /** Resolves the board file, migrating a legacy JSON board if one exists. */
+  boardPathFor: (workspaceId: string) => Promise<string | null>;
   openKanban: (workspaceId: string) => Promise<void>;
   openBrowser: (workspaceId: string) => void;
   openEditor: (workspaceId: string) => void;
@@ -133,7 +154,7 @@ export type PaneSlice = {
   reportBell: (ptyId: string) => void;
 };
 
-export type AppState = WorkspaceSlice & PaneSlice;
+export type AppState = WorkspaceSlice & PaneSlice & RunSlice & RailSlice;
 
 export type SetState = {
   (partial: Partial<AppState>): void;

@@ -2,6 +2,7 @@ mod agents;
 mod files;
 mod hook;
 mod pty;
+pub mod run;
 mod session;
 mod store;
 
@@ -52,7 +53,31 @@ pub fn run() {
             Ok(())
         })
         .manage(pty::PtyManager::new())
+        .manage(run::RunManager::new())
         .invoke_handler(tauri::generate_handler![
+            run::run_start,
+            run::run_cancel,
+            run::run_cancel_all,
+            run::run_live,
+            run::runs_reconcile,
+            run::record::run_list,
+            run::record::run_read_transcript,
+            run::record::run_patch,
+            run::record::runs_gc,
+            run::git::git_root,
+            run::git::git_init,
+            run::git::git_show,
+            run::git::git_take_files,
+            run::git::git_apply,
+            run::git::git_wave_base,
+            run::git::git_diff_files,
+            run::git::git_diff_patch,
+            run::git::worktree_add,
+            run::git::worktree_remove,
+            run::git::worktree_list,
+            run::git::worktree_commit,
+            run::git::git_branch_delete,
+            run::git::git_branches,
             pty::pty_spawn,
             pty::pty_write,
             pty::pty_resize,
@@ -86,6 +111,7 @@ pub fn run() {
         .run(|app, event| {
             // Nothing spawned by the app should outlive the window.
             if let tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit = event {
+                app.state::<run::RunManager>().kill_all();
                 app.state::<pty::PtyManager>().kill_all();
             }
         });

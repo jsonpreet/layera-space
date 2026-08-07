@@ -201,6 +201,16 @@ export const createWorkspaceSlice: Slice<WorkspaceSlice> = (set, get) => ({
       panes: restored,
       activeWorkspaceId: fixed[0]?.id ?? null,
     });
+
+    // Runs left "running" on disk had no process behind them once the app
+    // closed; mark them honestly, then trim old transcripts.
+    const { reconcileRuns, runsGc } = await import("../lib/run");
+    for (const ws of fixed) {
+      void reconcileRuns(ws.id)
+        .then(() => runsGc(ws.id))
+        .then(() => get().refreshRunHistory(ws.id))
+        .catch(() => {});
+    }
   },
 
   createWorkspace: async (title) => {

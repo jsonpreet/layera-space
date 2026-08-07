@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { createPaneSlice } from "./panes";
+import { createRailSlice } from "./rail";
+import { createRunSlice } from "./runs";
 import { createWorkspaceSlice } from "./workspaces";
 import type { AppState } from "./types";
 
@@ -11,7 +13,13 @@ import type { AppState } from "./types";
 export const useApp = create<AppState>((set, get) => ({
   ...createWorkspaceSlice(set, get),
   ...createPaneSlice(set, get),
+  ...createRunSlice(set, get),
+  ...createRailSlice(set, get),
 }));
 
 export { setDoneHandler } from "./panes";
+export { setRunDoneHandler } from "./runs";
+export { threadFor } from "./rail";
+export type { Message, RailMode, RailThread } from "./rail";
+export type { LiveRun } from "./runs";
 export * from "./types";

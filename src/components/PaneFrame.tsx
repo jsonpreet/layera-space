@@ -15,6 +15,13 @@ const EditorPane = lazy(() =>
   })),
 );
 
+// Monaco is heavy; both panes that use it load on demand.
+const DiffPane = lazy(() =>
+  import("./DiffPane").then(({ DiffPane: Component }) => ({
+    default: Component,
+  })),
+);
+
 function HeaderBtn({
   title,
   onClick,
@@ -143,6 +150,16 @@ export function PaneFrame({ pane }: { pane: Pane }) {
             }
           >
             <EditorPane pane={pane} />
+          </Suspense>
+        ) : pane.kind === "diff" ? (
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-sm text-faint">
+                Loading diff...
+              </div>
+            }
+          >
+            <DiffPane pane={pane} />
           </Suspense>
         ) : (
           <TermPane

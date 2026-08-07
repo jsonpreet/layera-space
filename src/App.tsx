@@ -1,17 +1,19 @@
 import { useEffect } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceView } from "./components/WorkspaceView";
+import { Rail } from "./components/rail/Rail";
 import { initAlerts } from "./lib/alerts";
 import { useApp } from "./store/app";
 import "./index.css";
 
 function App() {
-  const { ready, workspaces, activeWorkspaceId, init } = useApp();
+  const { ready, workspaces, activeWorkspaceId, init, initRuns } = useApp();
 
   useEffect(() => {
     void init();
+    void initRuns();
     initAlerts();
-  }, [init]);
+  }, [init, initRuns]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -50,6 +52,12 @@ function App() {
           </div>
         ))}
       </div>
+      {/*
+        A sibling of the workspace container, not a child of it: the thread then
+        survives workspace switches, and the browser pane's child webview keeps
+        getting correct window-coordinate rects as the row resizes.
+      */}
+      <Rail />
     </main>
   );
 }

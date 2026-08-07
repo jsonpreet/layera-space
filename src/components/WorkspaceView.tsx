@@ -76,6 +76,7 @@ export function WorkspaceView({ ws }: { ws: Workspace }) {
           >
             {ws.layoutMode === "dock" ? "Dock" : "Grid"}
           </button>
+          <RailToggle />
           <HistoryMenu ws={ws} />
           <LaunchMenu ws={ws} />
         </div>
@@ -111,5 +112,30 @@ export function WorkspaceView({ ws }: { ws: Workspace }) {
         )}
       </section>
     </div>
+  );
+}
+
+function RailToggle() {
+  const open = useApp((s) => s.settings.railOpen);
+  const live = useApp(
+    (s) => Object.values(s.runs).filter((r) => r.record.status === "running").length,
+  );
+  const setRailOpen = useApp((s) => s.setRailOpen);
+  return (
+    <button
+      type="button"
+      onClick={() => setRailOpen(!open)}
+      title="Composer  \u2318J"
+      className={`flex items-center gap-1.5 rounded px-1.5 py-0.5 text-[11px] transition-colors ${
+        open ? "text-accent" : "text-faint hover:bg-hover hover:text-muted"
+      }`}
+    >
+      Composer
+      {live > 0 && (
+        <span className="tabular-nums text-warn" title={`${live} run(s) in flight`}>
+          {live}
+        </span>
+      )}
+    </button>
   );
 }
