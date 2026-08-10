@@ -67,15 +67,16 @@ pub fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
+/// Path only — deliberately does not create anything, so merely listing or
+/// reconciling a workspace's runs at startup doesn't litter the data directory
+/// with an empty folder per workspace.
 pub fn runs_root(app: &AppHandle, workspace_id: &str) -> Result<PathBuf, String> {
-    let dir = app
+    Ok(app
         .path()
         .app_data_dir()
         .map_err(|e| e.to_string())?
         .join("runs")
-        .join(workspace_id);
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+        .join(workspace_id))
 }
 
 pub fn run_dir(app: &AppHandle, workspace_id: &str, run_id: &str) -> Result<PathBuf, String> {
@@ -87,7 +88,9 @@ pub fn run_dir(app: &AppHandle, workspace_id: &str, run_id: &str) -> Result<Path
 /// Append-only index. One line when a run starts, one when it ends; readers
 /// keep the last entry per id. Crash-safe with no locking.
 pub fn append_index(app: &AppHandle, record: &RunRecord) -> Result<(), String> {
-    let path = runs_root(app, &record.workspace_id)?.join("index.jsonl");
+    let root = runs_root(app, &record.workspace_id)?;
+    fs::create_dir_all(&root).map_err(|e| e.to_string())?;
+    let path = root.join("index.jsonl");
     let line = serde_json::to_string(record).map_err(|e| e.to_string())?;
     let mut file = OpenOptions::new()
         .create(true)
@@ -157,6 +160,9 @@ fn dir_size(path: &Path) -> u64 {
 #[tauri::command]
 pub fn runs_gc(app: AppHandle, workspace_id: String) -> Result<usize, String> {
     let root = runs_root(&app, &workspace_id)?;
+    if !root.exists() {
+        return Ok(0);
+    }
     let records = read_index(&app, &workspace_id);
 
     let mut keep: Vec<&RunRecord> = vec![];

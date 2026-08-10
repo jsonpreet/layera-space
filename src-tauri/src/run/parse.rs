@@ -183,6 +183,8 @@ impl JsonlParser {
             &["type"],
             &["msg", "type"],
             &["item", "type"],
+            // opencode nests the meaningful kind under `part`.
+            &["part", "type"],
             &["event"],
             &["kind"],
             &["subtype"],
@@ -288,9 +290,9 @@ impl LineParser for JsonlParser {
             }
         }
 
-        // Session banners, init handshakes and other bookkeeping: recognised,
-        // but nothing a person needs in the log.
-        if has("system") || has("session") || has("init") || has("hook") {
+        // Session banners, init handshakes and step markers: recognised
+        // bookkeeping, but nothing a person needs in the log.
+        if has("system") || has("session") || has("init") || has("hook") || has("step") {
             self.counters.ok += 1;
             return;
         }
@@ -396,6 +398,27 @@ mod tests {
         );
         assert_eq!(kinds(&events), vec![&EventKind::Assistant]);
         assert_eq!(parser.final_text().as_deref(), Some("done"));
+    }
+
+    // Captured from opencode via:
+    //   opencode run --format json --dir /tmp "say hi"
+    const OC_STEP_START: &str = r#"{"type":"step_start","timestamp":1786078014719,"sessionID":"ses_0","part":{"id":"prt_0","messageID":"msg_0","sessionID":"ses_0","type":"step-start"}}"#;
+    const OC_TEXT: &str = r#"{"type":"text","timestamp":1786078014719,"sessionID":"ses_0","part":{"id":"prt_1","messageID":"msg_0","sessionID":"ses_0","type":"text","text":"Hi!","time":{"start":1,"end":2}}}"#;
+    const OC_STEP_FINISH: &str = r#"{"type":"step_finish","timestamp":1786078014935,"sessionID":"ses_0","part":{"id":"prt_2","reason":"stop","type":"step-finish","tokens":{"total":26164,"input":3,"output":6}}}"#;
+
+    #[test]
+    fn parses_a_real_opencode_session() {
+        let (events, parser) =
+            run(Runner::Opencode, &[OC_STEP_START, OC_TEXT, OC_STEP_FINISH]);
+        // Step markers are bookkeeping; only the answer reaches the log.
+        assert_eq!(kinds(&events), vec![&EventKind::Assistant]);
+        assert_eq!(events[0].text.as_deref(), Some("Hi!"));
+        assert_eq!(parser.final_text().as_deref(), Some("Hi!"));
+        assert_eq!(
+            parser.health().1,
+            0,
+            "opencode's own output must not read as drift"
+        );
     }
 
     #[test]

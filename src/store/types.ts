@@ -1,6 +1,9 @@
 import type { AgentKind } from "../lib/agents";
 import type { LayoutNode } from "../lib/layout";
 import type { SoundKind } from "../lib/sound";
+import type { GraphSlice } from "./graph";
+import type { MemorySlice } from "./memory";
+import type { SkillSlice } from "./skills";
 import type { RunSlice } from "./runs";
 import type { RailMode, RailSlice } from "./rail";
 import type { Runner } from "../lib/run";
@@ -154,7 +157,13 @@ export type PaneSlice = {
   reportBell: (ptyId: string) => void;
 };
 
-export type AppState = WorkspaceSlice & PaneSlice & RunSlice & RailSlice;
+export type AppState = WorkspaceSlice &
+  PaneSlice &
+  RunSlice &
+  RailSlice &
+  GraphSlice &
+  MemorySlice &
+  SkillSlice;
 
 export type SetState = {
   (partial: Partial<AppState>): void;

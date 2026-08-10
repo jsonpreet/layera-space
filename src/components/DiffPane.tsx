@@ -277,7 +277,7 @@ function FileRow({
           type="button"
           onClick={onRevert}
           title="Discard this run's changes to this file"
-          className="shrink-0 rounded px-1 text-[11px] text-faint opacity-0 transition-opacity hover:text-[#d47a5c] group-hover:opacity-100"
+          className="shrink-0 rounded px-1 text-[11px] text-faint opacity-0 transition-opacity focus-visible:opacity-100 hover:text-[#d47a5c] group-hover:opacity-100 group-focus-within:opacity-100"
         >
           ×
         </button>

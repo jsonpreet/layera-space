@@ -15,6 +15,19 @@ const EditorPane = lazy(() =>
   })),
 );
 
+const MemoryPane = lazy(() =>
+  import("./memory/MemoryPane").then(({ MemoryPane: Component }) => ({
+    default: Component,
+  })),
+);
+
+// React Flow is heavy too, so it loads on demand like Monaco.
+const GraphPane = lazy(() =>
+  import("./graph/GraphPane").then(({ GraphPane: Component }) => ({
+    default: Component,
+  })),
+);
+
 // Monaco is heavy; both panes that use it load on demand.
 const DiffPane = lazy(() =>
   import("./DiffPane").then(({ DiffPane: Component }) => ({
@@ -150,6 +163,26 @@ export function PaneFrame({ pane }: { pane: Pane }) {
             }
           >
             <EditorPane pane={pane} />
+          </Suspense>
+        ) : pane.kind === "memory" ? (
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-sm text-faint">
+                Loading memory...
+              </div>
+            }
+          >
+            <MemoryPane pane={pane} />
+          </Suspense>
+        ) : pane.kind === "graph" ? (
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-sm text-faint">
+                Loading graph...
+              </div>
+            }
+          >
+            <GraphPane pane={pane} />
           </Suspense>
         ) : pane.kind === "diff" ? (
           <Suspense

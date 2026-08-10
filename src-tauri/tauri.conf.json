@@ -21,18 +21,55 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self' data:",
+        "img-src": "'self' data: asset: http://asset.localhost",
+        "worker-src": "'self' blob:",
+        "connect-src": "'self' ipc: http://ipc.localhost"
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'",
+        "font-src": "'self' data:",
+        "img-src": "'self' data: asset: http://asset.localhost",
+        "worker-src": "'self' blob:",
+        "connect-src": "'self' ipc: http://ipc.localhost ws://localhost:1421 http://localhost:1420"
+      }
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "dmg",
+      "app",
+      "nsis"
+    ],
+    "category": "DeveloperTool",
+    "shortDescription": "One workspace for every coding agent",
+    "longDescription": "Layera Space is a local-first agent development environment: a multi-workspace terminal grid for Claude Code, Codex and opencode, plus a headless run engine powering chat, plans, a visual agent graph with parallel builders and a verifier loop, project memory, skills, a task board, session replay, browser preview and an editor.",
+    "copyright": "Copyright \u00a9 2026 Layera",
+    "publisher": "Layera",
+    "resources": [
+      "resources/skills/*.md"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   }
 }

@@ -15,6 +15,8 @@ export function LaunchMenu({ ws }: { ws: Workspace }) {
     openKanban,
     openBrowser,
     openEditor,
+    openGraph,
+    openMemory,
     updateWorkspace,
   } = useApp();
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -131,6 +133,24 @@ export function LaunchMenu({ ws }: { ws: Workspace }) {
               className="block w-full px-3 py-1.5 text-left text-[13px] text-ink transition-colors hover:bg-hover"
             >
               Editor
+            </button>
+            <button
+              onClick={() => {
+                setOpenAt(null);
+                void openGraph(ws.id);
+              }}
+              className="block w-full px-3 py-1.5 text-left text-[13px] text-ink transition-colors hover:bg-hover"
+            >
+              Agent graph
+            </button>
+            <button
+              onClick={() => {
+                setOpenAt(null);
+                void openMemory(ws.id);
+              }}
+              className="block w-full px-3 py-1.5 text-left text-[13px] text-ink transition-colors hover:bg-hover"
+            >
+              Memory
             </button>
             <div className="mx-3 my-1 border-t border-line" />
             {AGENT_ORDER.map((kind) => {

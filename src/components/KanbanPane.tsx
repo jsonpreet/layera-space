@@ -311,7 +311,7 @@ function CardRow({
         </button>
       )}
 
-      <div className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="mt-1 flex items-center gap-0.5 opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100 group-focus-within:opacity-100">
         <CardBtn label="Move left" disabled={leftmost} onClick={() => onMove(-1)}>
           ←
         </CardBtn>

@@ -156,6 +156,12 @@ export const createRailSlice: Slice<RailSlice> = (set, get) => {
       // Build writes; chat and plan are questions and stay read-only.
       const write = mode === "build" ? state.settings.railWrite : false;
 
+      // Enabled skills first, then project memory: instructions before facts.
+      const context = [
+        ...state.skillBlocks(),
+        ...(await state.contextFor(workspaceId, input).catch(() => [])),
+      ];
+
       try {
         await state.launchRun({
           runId,
@@ -165,6 +171,7 @@ export const createRailSlice: Slice<RailSlice> = (set, get) => {
           cwd,
           mode: runMode,
           write,
+          context,
           label: titleFrom(input),
           captureDiff: mode === "build",
           runnerPaths: state.settings.runnerPaths,

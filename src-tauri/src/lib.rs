@@ -1,9 +1,11 @@
 mod agents;
 mod files;
 mod hook;
+mod memory;
 mod pty;
 pub mod run;
 mod session;
+mod skills;
 mod store;
 
 use tauri::Manager;
@@ -103,6 +105,17 @@ pub fn run() {
             files::fs_delete,
             files::fs_mkdir,
             files::fs_rename,
+            memory::memory_init,
+            memory::memory_index,
+            memory::memory_write,
+            memory::memory_delete,
+            memory::memory_search,
+            skills::skills_list,
+            skills::skill_import_file,
+            skills::skill_import_url,
+            skills::skill_import_git,
+            skills::skill_delete,
+            skills::skill_save,
             files::kanban_fallback_path,
             browser_navigate
         ])

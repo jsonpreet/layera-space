@@ -43,6 +43,9 @@ export type RunSlice = {
 
 let doneHandler: ((record: RunRecord) => void) | null = null;
 
+/** Same reason as the workspace slice: StrictMode calls effects twice. */
+let runsStarted = false;
+
 /** Set by the alerts layer so finished headless runs can chime like panes do. */
 export function setRunDoneHandler(fn: ((record: RunRecord) => void) | null) {
   doneHandler = fn;
@@ -104,8 +107,17 @@ export const createRunSlice: Slice<RunSlice> = (set, get) => ({
   runHistory: {},
 
   initRuns: async () => {
+    if (runsStarted) return;
+    runsStarted = true;
     await initRunBus();
-    onAnyRunExit(({ record }) => doneHandler?.(record));
+    onAnyRunExit(({ record }) => {
+      doneHandler?.(record);
+      // A graph node that changed files leaves a note behind, so the next
+      // agent in the graph inherits what happened rather than rediscovering it.
+      if (record.graphRunId && record.filesChanged.length > 0) {
+        void get().writeHandoff(record);
+      }
+    });
   },
 
   launchRun: async (spec) => {

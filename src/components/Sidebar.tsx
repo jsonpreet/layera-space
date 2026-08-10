@@ -1,6 +1,7 @@
 import { useApp } from "../store/app";
 import { LayersMark } from "./LayersMark";
 import { SettingsPopover } from "./SettingsPopover";
+import { SkillsPanel } from "./skills/SkillsPanel";
 import { WorkspaceItem } from "./WorkspaceItem";
 
 export function Sidebar() {
@@ -56,6 +57,7 @@ export function Sidebar() {
         >
           + New workspace
         </button>
+        <SkillsPanel />
         <SettingsPopover />
       </div>
     </aside>

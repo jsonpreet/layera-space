@@ -9,7 +9,7 @@ function StepList({ steps, workspaceId }: { steps: { text: string }[]; workspace
   return (
     <div className="mt-2 rounded border border-line bg-panel">
       <div className="flex items-center gap-2 border-b border-line px-2.5 py-1.5">
-        <span className="text-[10px] uppercase tracking-wide text-faint">
+        <span className="text-[10px] text-faint">
           {steps.length} step{steps.length === 1 ? "" : "s"}
         </span>
         <button

@@ -27,6 +27,17 @@ type HookPayload = { pane_id: string; agent: string; event: string };
 const lastOut = new Map<string, number>();
 let idleTimer: ReturnType<typeof setInterval> | undefined;
 
+/**
+ * Set synchronously on the first call to `init`.
+ *
+ * The `ready` flag can't guard this: it is only set once init has finished
+ * awaiting, and React StrictMode invokes effects twice in development, so both
+ * passes get past a `ready` check and each registers its own `pty://output`
+ * listener. Every chunk of terminal output then arrives twice and the pane
+ * renders everything doubled.
+ */
+let initStarted = false;
+
 /** Pane kinds that own no pty and therefore need nothing respawned. */
 const SURFACE_KINDS = new Set<Pane["kind"]>([
   "replay",
@@ -59,7 +70,8 @@ export const createWorkspaceSlice: Slice<WorkspaceSlice> = (set, get) => ({
   settings: DEFAULT_SETTINGS,
 
   init: async () => {
-    if (get().ready) return;
+    if (initStarted) return;
+    initStarted = true;
     clearRecordingMarks();
 
     await listen<PtyOutput>("pty://output", (e) => {

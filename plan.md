@@ -2,11 +2,13 @@
 
 ## Progress
 - [x] Phase 1 — Core workspace app (M0-M5): scaffold, PTY core, workspaces (colors/titles/pins/folders/persistence), grid + zoom + agent launcher, completion detection (Claude Stop hook + bell + idle fallback; Codex skipped where user already has a notify), sounds + native notifications
-- [ ] Phase 2 — Session capture + dev surface (PTY capture, replay, restore, run history, dock mode, browser preview and editor baseline complete; headless transcripts, Kanban links/Markdown storage and run-aware proposal review remain)
-- [ ] Phase 3 — Run engine + composer rail
-- [ ] Phase 4 — Visual Agent Graph, waves, verifier
-- [ ] Phase 5 — Memory + skills
-- [ ] Phase 6 — Packaging
+- [x] Phase 2 — Session capture + dev surface (capture, replay, restore, run history, dock mode, browser preview, editor; headless transcripts, Markdown board with run/pane links, run-aware proposal review)
+- [x] Phase 3 — Run engine + composer rail
+- [x] Phase 4 — Visual Agent Graph, waves, verifier
+- [x] Phase 5 — Memory + skills
+- [x] Phase 6 — Packaging config (bundle targets, metadata, CSP, README) — **installer not yet produced/verified**
+
+See `STATUS.md` for what is built, what is unverified, and what is still open.
 
 ---
 

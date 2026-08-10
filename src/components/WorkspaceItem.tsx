@@ -113,7 +113,7 @@ export function WorkspaceItem({
             e.stopPropagation();
             openMenu(e);
           }}
-          className="shrink-0 rounded px-1 text-faint opacity-0 transition-opacity hover:text-ink group-hover:opacity-100"
+          className="shrink-0 rounded px-1 text-faint opacity-0 transition-opacity focus-visible:opacity-100 hover:text-ink group-hover:opacity-100 group-focus-within:opacity-100"
           aria-label="workspace menu"
         >
           &hellip;
