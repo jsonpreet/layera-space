@@ -91,6 +91,8 @@ export type TemplateVars = {
   plan?: string;
   feedback?: string;
   files?: string;
+  /** Aggregator nodes: what each upstream builder produced. */
+  compare?: string;
 };
 
 /**

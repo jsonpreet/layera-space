@@ -97,7 +97,9 @@ export const createGraphSlice: Slice<GraphSlice> = (set, get) => ({
 
     const signal = { cancelled: false };
     const installed = (["claude", "codex", "opencode"] as AgentKind[]).filter(
-      (k) => state.agents[k] !== null,
+      (k) =>
+        state.agents[k] !== null ||
+        !!state.settings.runnerPaths[k],
     ) as Runner[];
 
     let baseCommit = "";

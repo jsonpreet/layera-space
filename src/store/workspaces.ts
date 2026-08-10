@@ -165,7 +165,9 @@ export const createWorkspaceSlice: Slice<WorkspaceSlice> = (set, get) => ({
       try {
         const program =
           sp.kind === "agent" && sp.agent
-            ? (agents[sp.agent] ?? AGENTS[sp.agent].cmd)
+            ? (settings.runnerPaths[sp.agent] ??
+              agents[sp.agent] ??
+              AGENTS[sp.agent].cmd)
             : undefined;
         const env: Record<string, string> =
           sp.kind === "agent" && sp.agent

@@ -127,6 +127,18 @@ export function describeFlags(runner: Runner, write: boolean): string {
   }
 }
 
+export type RunnerInfo = {
+  path: string | null;
+  version: string | null;
+};
+
+export function detectRunners(
+  names: string[],
+  force = false,
+): Promise<Record<string, RunnerInfo>> {
+  return invoke<Record<string, RunnerInfo>>("detect_runners", { names, force });
+}
+
 export function startRun(spec: RunSpec): Promise<RunRecord> {
   return invoke<RunRecord>("run_start", { spec });
 }

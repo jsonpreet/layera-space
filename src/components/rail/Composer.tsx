@@ -37,7 +37,9 @@ export function Composer({ workspaceId }: { workspaceId: string }) {
   }, [thread.draft]);
 
   const installed = (r: Runner) =>
-    r === "shell" || agents[r as keyof typeof agents] !== null;
+    r === "shell" ||
+    agents[r as keyof typeof agents] !== null ||
+    !!settings.runnerPaths[r];
 
   return (
     <div className="shrink-0 border-t border-line bg-panel">

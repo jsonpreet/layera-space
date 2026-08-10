@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  builderAncestors,
   emptyGraph,
   newNode,
   waveGraph,
@@ -116,6 +117,36 @@ describe("renderTemplate", () => {
 
   it("substitutes an empty string for a known-but-empty variable", () => {
     expect(renderTemplate("[{{feedback}}]", { feedback: "" })).toBe("[]");
+  });
+
+  it("fills the compare placeholder for aggregator nodes", () => {
+    expect(renderTemplate("{{compare}}", { compare: "## Builder 1" })).toBe(
+      "## Builder 1",
+    );
+  });
+});
+
+describe("builderAncestors", () => {
+  it("finds builders two hops up through a verifier", () => {
+    const graph = waveGraph(3);
+    const aggregator = graph.nodes.find((n) => n.type === "aggregator")!;
+    const builders = builderAncestors(graph, aggregator.id);
+    expect(builders).toHaveLength(3);
+    expect(builders.every((b) => b.type === "builder")).toBe(true);
+  });
+
+  it("excludes non-builder ancestors like the planner", () => {
+    const graph = waveGraph(2);
+    const aggregator = graph.nodes.find((n) => n.type === "aggregator")!;
+    const ids = builderAncestors(graph, aggregator.id).map((b) => b.id);
+    const planner = graph.nodes.find((n) => n.type === "planner")!;
+    expect(ids).not.toContain(planner.id);
+  });
+
+  it("returns nothing for a node with no upstream builders", () => {
+    const a = newNode("prompt", 0, 0);
+    const b = newNode("builder", 0, 0);
+    expect(builderAncestors(graphOf([a, b], [edge(a.id, b.id)]), a.id)).toHaveLength(0);
   });
 });
 
@@ -273,6 +304,26 @@ describe("runGraph", () => {
       defaultRunner: "claude",
     });
     expect(order.filter((id) => id === verifier.id)).toHaveLength(1);
+  });
+
+  it("feeds the aggregator each builder's branch and summary", async () => {
+    const graph = waveGraph(2);
+    const aggregator = graph.nodes.find((n) => n.type === "aggregator")!;
+    const api = fakeApi();
+    await runGraph({
+      graph,
+      input: "x",
+      workspaceId: "w",
+      cwd: "/tmp",
+      api,
+      defaultRunner: "claude",
+    });
+    const call = (api.startRun as ReturnType<typeof vi.fn>).mock.calls.find(
+      ([opts]) => opts.nodeId === aggregator.id,
+    )?.[0] as { prompt: string };
+    expect(call.prompt).toContain("## Builder 1");
+    expect(call.prompt).toContain("## Builder 2");
+    expect(call.prompt).toMatch(/output of/);
   });
 
   it("creates one worktree per builder and commits each", async () => {

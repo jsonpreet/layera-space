@@ -1,4 +1,5 @@
 import {
+  builderAncestors,
   parentsOf,
   type Graph,
   type GraphNode,
@@ -69,6 +70,39 @@ function summarizeFiles(files: FileChange[]): string {
   return files
     .map((f) => `${f.status} ${f.path} (+${f.added} −${f.deleted})`)
     .join("\n");
+}
+
+/**
+ * What an aggregator gets to judge: each upstream builder's branch, tip and the
+ * summary of what it produced, so the node compares real results rather than
+ * restating the input.
+ */
+function aggregatorCompare(
+  graph: Graph,
+  node: GraphNode,
+  run: GraphRun,
+  outputs: Map<string, string>,
+  changed: Map<string, FileChange[]>,
+): string {
+  const builders = builderAncestors(graph, node.id);
+  const lines: string[] = [];
+  for (const builder of builders) {
+    const nodeRun = run.nodeRuns[builder.id];
+    const summary = (outputs.get(builder.id) ?? "").trim() || "(no summary)";
+    const files = summarizeFiles(changed.get(builder.id) ?? []);
+    lines.push(
+      [
+        `## ${builder.title}`,
+        nodeRun?.branch ? `branch: ${nodeRun.branch}` : "",
+        nodeRun?.tip ? `tip: ${nodeRun.tip}` : "",
+        summary,
+        files,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  }
+  return lines.join("\n\n");
 }
 
 /** Verdict from a verifier: a shell exit code, or PASS/FAIL in the text. */
@@ -167,6 +201,7 @@ export async function runGraph({
             plan: plan || parentText || input,
             feedback,
             files: summarizeFiles(files),
+            compare: aggregatorCompare(graph, node, run, outputs, changed),
           });
 
     const runId = api.newId();

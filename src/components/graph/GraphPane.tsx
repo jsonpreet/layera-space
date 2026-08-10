@@ -27,6 +27,7 @@ import { useApp, type Pane } from "../../store/app";
 import { PALETTE } from "../../lib/theme";
 import { Inspector } from "./Inspector";
 import { AgentNode } from "./AgentNode";
+import { ComparePanel } from "./ComparePanel";
 
 const PALETTE_ORDER: NodeType[] = [
   "prompt",
@@ -295,6 +296,16 @@ export function GraphPane({ pane }: { pane: Pane }) {
             nodeRun={graphRun?.nodeRuns[selectedNode.id]}
             onChange={updateNode}
             onDelete={() => deleteNode(selectedNode.id)}
+            onClose={() => setSelected(null)}
+          />
+        )}
+
+        {selectedNode?.type === "aggregator" && (
+          <ComparePanel
+            node={selectedNode}
+            graph={graph}
+            graphRun={graphRun}
+            workspaceId={workspaceId}
             onClose={() => setSelected(null)}
           />
         )}

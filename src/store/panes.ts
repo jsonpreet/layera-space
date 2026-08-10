@@ -123,7 +123,10 @@ export const createPaneSlice: Slice<PaneSlice> = (set, get) => ({
   spawnAgent: async (workspaceId, kind, dir = "h") => {
     const ws = get().workspaces.find((w) => w.id === workspaceId);
     if (!ws) return;
-    const program = get().agents[kind] ?? AGENTS[kind].cmd;
+    const program =
+      get().settings.runnerPaths[kind] ??
+      get().agents[kind] ??
+      AGENTS[kind].cmd;
     const paneId = crypto.randomUUID();
     const ptyId = await spawnPty({
       cwd: ws.folder ?? undefined,

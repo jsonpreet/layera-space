@@ -96,7 +96,7 @@ const DEFAULT_TEMPLATE: Partial<Record<NodeType, string>> = {
   planner: "{{input}}",
   builder: "{{plan}}\n\n{{feedback}}",
   verifier: "Review the changes for correctness.\n\n{{files}}",
-  aggregator: "{{input}}",
+  aggregator: "{{compare}}\n\nCompare the builders above and recommend one.",
 };
 
 export function newNode(type: NodeType, x: number, y: number): GraphNode {
@@ -168,4 +168,35 @@ export function parentsOf(graph: Graph, nodeId: string): GraphNode[] {
 export function childrenOf(graph: Graph, nodeId: string): GraphNode[] {
   const ids = graph.edges.filter((e) => e.from === nodeId).map((e) => e.to);
   return graph.nodes.filter((n) => ids.includes(n.id));
+}
+
+/**
+ * Every node that feeds a node transitively, in dependency order.
+ *
+ * Unlike `parentsOf` this walks the whole upstream chain — an aggregator's
+ * builders are usually two hops up, through the verifier.
+ */
+export function ancestorsOf(graph: Graph, nodeId: string): GraphNode[] {
+  const ids = graph.edges.filter((e) => e.to === nodeId).map((e) => e.from);
+  const seen = new Set<string>();
+  const out: GraphNode[] = [];
+  const visit = (id: string) => {
+    if (seen.has(id)) return;
+    seen.add(id);
+    for (const edge of graph.edges) {
+      if (edge.to === id) {
+        const parent = graph.nodes.find((n) => n.id === edge.from);
+        if (parent) visit(parent.id);
+      }
+    }
+    const node = graph.nodes.find((n) => n.id === id);
+    if (node) out.push(node);
+  };
+  for (const id of ids) visit(id);
+  return out;
+}
+
+/** The builder nodes whose work reaches an aggregator, in dependency order. */
+export function builderAncestors(graph: Graph, nodeId: string): GraphNode[] {
+  return ancestorsOf(graph, nodeId).filter((n) => n.type === "builder");
 }
